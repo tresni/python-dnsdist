@@ -12,13 +12,14 @@ except ImportError:
 
 
 class Console(object):
-    def __init__(self, key=None, host='127.0.0.1', port=5199, have_sodium=HAVE_SODIUM):
+    def __init__(self, key=None, host='127.0.0.1', port=5199, have_sodium=HAVE_SODIUM, merge_nonces=True):
         if have_sodium:
             if key:
                 key = base64.b64decode(key)
             else:
                 # libnacl won't like it if you send anything less then KEYBYTES
                 key = '\0' * libnacl.crypto_secretbox_KEYBYTES
+            self.__merge_nonces = merge_nonces
             self.__box = SecretBox(key=key)
             self.__my_nonce = rand_nonce()
         else:
@@ -57,24 +58,38 @@ class Console(object):
         logging.debug('Got length of %d' % length)
         return self._recvbits(length)
 
+    def _reading_nonce(self):
+        if self.__merge_nonces:
+            half_nonce_size = len(self.__my_nonce) / 2
+            return self.__my_nonce[0:half_nonce_size] + self.__th_nonce[half_nonce_size:]
+        else:
+            return self.__th_nonce
+
+    def _writing_nonce(self):
+        if self.__merge_nonces:
+            half_nonce_size = len(self.__my_nonce) / 2
+            return self.__th_nonce[0:half_nonce_size] + self.__my_nonce[half_nonce_size:]
+        else:
+            return self.__my_nonce
+
     def disconnect(self):
         self.__client.close()
 
     def execute(self, msg):
         logging.info("Sending: %s" % msg)
         if self.__box:
-            msg = self.__box.encrypt(msg, nonce=self.__my_nonce, pack_nonce=False)[1]
+            msg = self.__box.encrypt(msg, nonce=self._writing_nonce(), pack_nonce=False)[1]
             logging.info("Cipher text: %s" % msg.encode('hex'))
-            self.__my_nonce = Console.increment_nonce(self.__my_nonce)
-            logging.debug('New nonce: %s' % self.__my_nonce.encode('hex'))
         self._send(msg)
 
         logging.info("Waiting for response...")
         msg = self._recv()
         if self.__box:
             logging.info("Cipher text: %s" % msg.encode('hex'))
-            msg = self.__box.decrypt(msg, nonce=self.__th_nonce)
+            msg = self.__box.decrypt(msg, nonce=self._reading_nonce())
+            self.__my_nonce = Console.increment_nonce(self.__my_nonce)
+            logging.debug('Our new nonce: %s' % self.__my_nonce.encode('hex'))
             self.__th_nonce = Console.increment_nonce(self.__th_nonce)
-            logging.debug('New nonce: %s' % self.__th_nonce.encode('hex'))
+            logging.debug('Their new nonce: %s' % self.__th_nonce.encode('hex'))
         logging.info("Received: %s" % msg)
         return msg
