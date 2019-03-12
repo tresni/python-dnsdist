@@ -12,7 +12,7 @@ except ImportError:
 
 
 class Console(object):
-    def __init__(self, key=None, host='127.0.0.1', port=5199, have_sodium=HAVE_SODIUM, merge_nonces=True):
+    def __init__(self, key=None, host='127.0.0.1', port=5199, have_sodium=HAVE_SODIUM, merge_nonces=False):
         if have_sodium:
             if key:
                 key = base64.b64decode(key)
