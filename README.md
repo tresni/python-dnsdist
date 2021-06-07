@@ -26,7 +26,7 @@ print console.execute('showServers()')
 from DNSDist import Console
 
 # Connect to dnsdist 1.2.0+ instance on 10.100.1.2:3200 with supplied key
-console = Console(key='tZ+bElqKb+moWK1BAAlSjIjAdVb9zTXT7Ziqj/lw/R8=', host='10.100.1.2', port=3200, merged_nonces=True)
+console = Console(key='tZ+bElqKb+moWK1BAAlSjIjAdVb9zTXT7Ziqj/lw/R8=', host='10.100.1.2', port=3200, merge_nonces=True)
 print console.execute('showServers()')
 ```
 
